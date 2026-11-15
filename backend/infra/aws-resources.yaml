@@ -1,0 +1,173 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  License plate recognition - storage and security. Creates a KMS key, a private
+  encrypted S3 bucket (TLS-only, 30-day auto-delete), encrypted DynamoDB tables
+  with TTL, and a least-privilege IAM policy for the FastAPI backend.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: lpr
+    AllowedPattern: "[a-z0-9-]+"
+  RetentionDays:
+    Type: Number
+    Default: 30
+    Description: Days to keep images in S3. Keep equal to RETENTION_DAYS in the app.
+  UseCustomerManagedKey:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >
+      true = your own KMS key ($1/month, full control + audit).
+      false = AWS managed keys (no monthly key fee, less control).
+
+Conditions:
+  UseCmk: !Equals [!Ref UseCustomerManagedKey, "true"]
+
+Resources:
+  DataKey:
+    Type: AWS::KMS::Key
+    Condition: UseCmk
+    Properties:
+      Description: !Sub "${ProjectName} - encrypts plate images and records"
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdmin
+            Effect: Allow
+            Principal: {AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"}
+            Action: "kms:*"
+            Resource: "*"
+
+  DataKeyAlias:
+    Type: AWS::KMS::Alias
+    Condition: UseCmk
+    Properties:
+      AliasName: !Sub "alias/${ProjectName}-data"
+      TargetKeyId: !Ref DataKey
+
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-images-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ObjectOwnership: BucketOwnerEnforced}]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !If [UseCmk, !GetAtt DataKey.Arn, !Ref "AWS::NoValue"]
+            BucketKeyEnabled: true
+      VersioningConfiguration: {Status: Suspended}
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldImages
+            Status: Enabled
+            Prefix: uploads/
+            ExpirationInDays: !Ref RetentionDays
+          - Id: CleanupIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload: {DaysAfterInitiation: 1}
+
+  ImageBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ImageBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyNonTLS
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt ImageBucket.Arn
+              - !Sub "${ImageBucket.Arn}/*"
+            Condition: {Bool: {"aws:SecureTransport": "false"}}
+          - Sid: DenyUnencryptedUploads
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:PutObject"
+            Resource: !Sub "${ImageBucket.Arn}/*"
+            Condition:
+              StringNotEquals: {"s3:x-amz-server-side-encryption": "aws:kms"}
+
+  RecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-records"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: record_id, AttributeType: S}
+        - {AttributeName: plate_number, AttributeType: S}
+        - {AttributeName: timestamp, AttributeType: S}
+      KeySchema: [{AttributeName: record_id, KeyType: HASH}]
+      GlobalSecondaryIndexes:
+        - IndexName: plate_number-index
+          KeySchema:
+            - {AttributeName: plate_number, KeyType: HASH}
+            - {AttributeName: timestamp, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      TimeToLiveSpecification: {AttributeName: expires_at, Enabled: true}
+      PointInTimeRecoverySpecification: {PointInTimeRecoveryEnabled: true}
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !If [UseCmk, !GetAtt DataKey.Arn, !Ref "AWS::NoValue"]
+
+  VehiclesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-vehicles"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: plate_number, AttributeType: S}]
+      KeySchema: [{AttributeName: plate_number, KeyType: HASH}]
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !If [UseCmk, !GetAtt DataKey.Arn, !Ref "AWS::NoValue"]
+
+  # Attach this to the EC2 instance role / ECS task role / Lambda role running the API.
+  BackendPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${ProjectName}-backend"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: Images
+            Effect: Allow
+            Action: [s3:PutObject, s3:GetObject, s3:DeleteObject]
+            Resource: !Sub "${ImageBucket.Arn}/uploads/*"
+          - Sid: Records
+            Effect: Allow
+            Action: [dynamodb:PutItem, dynamodb:GetItem, dynamodb:DeleteItem, dynamodb:Query]
+            Resource:
+              - !GetAtt RecordsTable.Arn
+              - !Sub "${RecordsTable.Arn}/index/*"
+          - Sid: VehiclesReadOnly
+            Effect: Allow
+            Action: [dynamodb:GetItem, dynamodb:Scan]
+            Resource: !GetAtt VehiclesTable.Arn
+          - !If
+            - UseCmk
+            - Sid: UseDataKey
+              Effect: Allow
+              Action: [kms:Encrypt, kms:Decrypt, kms:GenerateDataKey]
+              Resource: !GetAtt DataKey.Arn
+            - !Ref "AWS::NoValue"
+
+Outputs:
+  S3Bucket: {Value: !Ref ImageBucket}
+  RecordsTable: {Value: !Ref RecordsTable}
+  VehiclesTable: {Value: !Ref VehiclesTable}
+  KmsKeyArn:
+    Condition: UseCmk
+    Value: !GetAtt DataKey.Arn
+  BackendPolicyArn: {Value: !Ref BackendPolicy}
