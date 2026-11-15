@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Truck Outflow</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #scans table { border-collapse: collapse; width: 100%; max-width: 900px; }
+  #scans th, #scans td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; vertical-align: middle; }
+  #scans img { width: 120px; border-radius: 4px; }
+  .plate { font: 700 1.3rem monospace; letter-spacing: 2px; }
+  .st-success { color: #0a7d2c; font-weight: 600; }
+  .st-low_confidence { color: #b36b00; font-weight: 600; }
+  .st-no_plate_found { color: #888; }
+  #scanStatus { font-size: .9rem; color: #666; }
+</style>
+</head>
+<body>
+<header>
+<nav>
+<ul>
+<li><a href="#home">Home</a></li>
+<li><a href="#scans">Live Scans</a></li>
+<li><a href="#map">Map</a></li>
+<li><a href="#contact">Contact</a></li>
+</ul>
+</nav>
+</header>
+<main>
+<h2>Enter Your Location</h2>
+
+  <input type="text" id="locationInput" placeholder="Enter a location">
+  <button id="showBtn">Show Table</button>
+
+  <!-- Table (initially hidden) -->
+  <table id="resultsTable">
+    <thead id="tableHeader">
+    </thead>
+    <tbody id="tableBody">
+      <!-- Filled dynamically -->
+    </tbody>
+  </table>
+
+  <script>
+    const truckData = {
+    Detroit: [
+    { truck: "Truck 1", status: "Available" },
+    { truck: "Truck 2", status: "In Use" }
+    ],
+    Chicago: [
+    { truck: "Truck A", status: "Available" }
+    ],
+    Houston: [
+    { truck: "Truck X", status: "Maintenance" },
+    { truck: "Truck Y", status: "Available" }
+    ]
+};
+
+    document.getElementById("showBtn").addEventListener("click", function () {
+  const location = document.getElementById("locationInput").value.trim();
+  const normalized = location.charAt(0).toUpperCase() + location.slice(1).toLowerCase();
+  const trucks = truckData[normalized];
+  const table = document.getElementById("resultsTable");
+  const tableHeader = document.getElementById("tableHeader");
+  const tableBody = document.getElementById("tableBody");
+
+  if (!location) {
+    alert("Please enter a location first.");
+    return;
+  }
+
+  // Check if location exists in our data
+
+  if (!trucks) {
+    table.style.display = "none";
+    alert(`No truck data found for "${location}".`);
+    return;
+  }
+
+  // Build header
+  tableHeader.innerHTML = `
+    <tr>
+      <th>Location</th>
+      <th>Truck #</th>
+      <th>Availability</th>
+    </tr>
+  `;
+
+  // Build body
+  tableBody.innerHTML = "";
+  trucks.forEach(item => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${location}</td>
+      <td>${item.truck}</td>
+      <td>${item.status}</td>
+    `;
+    tableBody.appendChild(row);
+  });
+
+  // Show table
+  table.style.display = "table";
+
+  // OPTIONAL: Update map dynamically
+  const mapFrame = document.querySelector("#map iframe");
+  if (mapFrame) {
+    mapFrame.src = `https://www.google.com/maps?q=${encodeURIComponent(location)}&output=embed`;
+  }
+});
+  </script>
+
+<section id="home">
+<h1>Truck information lookup</h1>
+<p>Find available trucks for shiping near you</p>
+</section>
+
+<!-- LIVE PLATE SCANS: filled from the license-plate backend (FREE-WILi button -> camera -> OCR) -->
+<section id="scans">
+  <h2>Live Plate Scans</h2>
+  <p id="scanStatus">Connecting to the scanner...</p>
+  <table>
+    <thead><tr><th>Photo</th><th>Plate</th><th>Result</th><th>Confidence</th><th>Time</th><th>Truck</th></tr></thead>
+    <tbody id="scanBody"></tbody>
+  </table>
+</section>
+<script>
+  // Same address serves the page and the API, so no CORS setup is needed.
+  // Change API_BASE if the backend runs elsewhere, e.g. "http://localhost:8000".
+  const API_BASE = "";
+  const LABEL = { success: "Plate read", low_confidence: "Needs review", no_plate_found: "No plate found" };
+  async function refreshScans() {
+    const status = document.getElementById("scanStatus");
+    try {
+      const res = await fetch(API_BASE + "/demo-api/latest");
+      if (!res.ok) throw new Error(res.status);
+      const rows = await res.json();
+      status.textContent = rows.length ? "Updated " + new Date().toLocaleTimeString() + ". Press the green button to scan." : "No scans yet. Press the green button on the FREE-WILi.";
+      const body = document.getElementById("scanBody");
+      body.innerHTML = "";
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        const cell = (node) => { const td = document.createElement("td"); td.append(node); tr.appendChild(td); return td; };
+        const img = document.createElement("img"); img.src = API_BASE + "/demo-api/image/" + encodeURIComponent(r.record_id); img.alt = "capture"; cell(img);
+        const p = document.createElement("span"); p.className = "plate"; p.textContent = r.plate_number || "-"; cell(p);
+        const s = document.createElement("span"); s.className = "st-" + r.status; s.textContent = LABEL[r.status] || r.status; cell(s);
+        cell(r.confidence != null ? r.confidence.toFixed(0) + "%" : "-");
+        cell(new Date(r.timestamp).toLocaleTimeString());
+        cell(r.vehicle_match ? (r.vehicle_id || "Registered") : "Not registered");
+        body.appendChild(tr);
+      });
+    } catch (e) {
+      status.textContent = "Scanner offline (is the backend running?)";
+    }
+  }
+  refreshScans();
+  setInterval(refreshScans, 2000);
+</script>
+
+<section id="map">
+  <h2>Map</h2>
+  <iframe
+    width="50%"
+    height="250"
+    style="border:0;"
+    loading="lazy"
+    allowfullscreen
+    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2993.12345!2d-83.045753!3d42.331427!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8824d2c3f0e1b1b1%3A0x123456789abcdef!2sDetroit%2C%20MI!5e0!3m2!1sen!2sus!4v1700000000000">
+  </iframe>
+</section>
+<section id="contact">
+<h2>Contact Us</h2>
+<form>
+<input type="text" placeholder="Your Name">
+<input type="email" placeholder="Your Email">
+<button type="submit">Send</button>
+</form>
+</section>
+</main>
+<footer>
+<p>© 2024 Your Company. All rights reserved.</p>
+</footer>
+</body>
+</html>
