@@ -29,6 +29,23 @@ with mock_aws():
     from app.main import app
     from fastapi import Response, HTTPException
     from fastapi.staticfiles import StaticFiles
+    # Prefer Apple Vision for reading (macOS); keep Anvita's Tesseract pipeline as the fallback.
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import apple_vision_ocr
+        import app.main as _m
+        from app.ocr_plate import OcrResult
+        _orig_run_ocr = _m._run_ocr
+
+        def _run_ocr(img, settings):
+            plate, conf, lines = apple_vision_ocr.read_plate(img, settings.plate_regex)
+            if plate:
+                return OcrResult(plate, round(conf, 1), plate, 1, [(l[0], round(l[1] * 100, 1)) for l in lines])
+            return _orig_run_ocr(img, settings)
+        _m._run_ocr = _run_ocr
+        print("OCR: Apple Vision (Tesseract fallback)")
+    except Exception as e:
+        print("OCR: Tesseract only (", e, ")")
     ddb = boto3.resource("dynamodb", region_name=R).Table("lpr-records")
     s3 = boto3.client("s3", region_name=R)
 
