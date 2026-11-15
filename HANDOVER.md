@@ -123,6 +123,8 @@ The response text is printed to the terminal. To use a different flow, read the 
 
 `samples/` has 5 real captures from this camera (1920x1080 JPEG, same format the script saves), so you can test your pipeline before you have the hardware in hand. They show people and a desk, **not license plates**. Everyone in them agreed to be published. Please do not reuse them outside this project.
 
+`samples/web/` has 3 CC0 photos of vehicles with readable plates (a close-up, a truck and a pickup), taken from Wikimedia Commons. Sources and licenses are in `samples/web/SOURCES.md`. These are *not* from our camera, so their quality differs from real captures.
+
 ## Things to know
 
 - **No FREE-WILi library is needed.** Your `get_file` / `take_picture` flow is not used. The camera is on the ESP32 board, not the FREE-WILi, and the FREE-WILi now runs a small custom app that only announces the button press.
