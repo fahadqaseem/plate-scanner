@@ -16,12 +16,23 @@ static fwog_link_rx_t s_rx;   /* ~4 KB: must be file-scope, not on the stack */
 
 static bool lcd_ok;
 
+/* Draw `str` horizontally centred at row y, using the largest scale (<= max_scale) that fits. */
+static void draw_centered(uint16_t y, const char *str, unsigned max_scale, uint16_t fg, uint16_t bg) {
+    unsigned n = 0;
+    while (str[n]) n++;
+    unsigned scale = max_scale;
+    while (scale > 1u && lcd_text_width_px(n, scale) > ST7789_W - 10u) scale--;
+    const unsigned w = lcd_text_width_px(n, scale);
+    lcd_text_draw((uint16_t)((ST7789_W - w) / 2u), y, str, scale, fg, bg);
+}
+
 static void screen_ready(void) {
     if (!lcd_ok) return;
-    const uint16_t bg = st7789_rgb565(0, 0, 40), fg = st7789_rgb565(255, 255, 255);
+    const uint16_t bg = st7789_rgb565(0, 0, 40);
     st7789_clear(bg);
-    lcd_text_draw(40, 90, "PLATE SCANNER", 3, fg, bg);
-    lcd_text_draw(40, 140, "press green = photo", 2, st7789_rgb565(120, 200, 255), bg);
+    draw_centered(50, "FREE MILES", 5, st7789_rgb565(255, 255, 255), bg);
+    draw_centered(120, "TEAM ZORRO", 4, st7789_rgb565(255, 180, 0), bg);
+    draw_centered(200, "press green = photo", 2, st7789_rgb565(120, 200, 255), bg);
 }
 
 static void screen_flash(void) {

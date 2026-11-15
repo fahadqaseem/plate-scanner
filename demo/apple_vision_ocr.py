@@ -34,11 +34,11 @@ def _lines(img_bgr):
     return out
 
 
-def _best(lines, pattern):
+def _best(lines, pattern, min_height=0.0):
     best = None
     for text, conf, height, box in lines:
         t = _ALNUM.sub("", text.upper())
-        if not (4 <= len(t) <= 8) or not pattern.match(t):
+        if height < min_height or not (4 <= len(t) <= 8) or not pattern.match(t):
             continue
         if not (any(ch.isdigit() for ch in t) and any(ch.isalpha() for ch in t)):
             continue
@@ -47,13 +47,13 @@ def _best(lines, pattern):
     return best
 
 
-def read_plate(img_bgr, plate_regex):
+def read_plate(img_bgr, plate_regex, min_height=0.0):
     """Return (plate, confidence 0-100, all_lines) or (None, 0, lines). The plate is the
     largest text line that looks like a plate: 4-8 letters/digits with at least one of each.
     A second pass re-reads a tight crop of that line, which fixes clipped end characters."""
     pattern = re.compile(plate_regex)
     lines = _lines(img_bgr)
-    best = _best(lines, pattern)
+    best = _best(lines, pattern, min_height)
     if not best:
         return None, 0.0, lines
     H, W = img_bgr.shape[:2]

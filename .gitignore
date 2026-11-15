@@ -11,3 +11,4 @@ plates/
 demo/.venv/
 demo/api.log
 demo/aws.env
+demo/.spool/
