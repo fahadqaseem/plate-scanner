@@ -155,7 +155,22 @@ def _ocr_line(img: np.ndarray) -> tuple[str, float]:
         if t.strip() and c >= 0:
             words.append(t)
             confs.append(c)
-    return clean_text("".join(words)), (sum(confs) / len(confs) if confs else 0.0)
+    text = clean_text("".join(words))
+    conf = sum(confs) / len(confs) if confs else 0.0
+    if text and conf == 0.0:
+        # Tesseract 5.5 reports confidence 0 for every word when a character
+        # whitelist is set, even for a correct read. Re-run without the whitelist
+        # purely to get a real confidence, and only trust it if it read the same text.
+        d2 = pytesseract.image_to_data(img, config="--oem 3 --psm 7",
+                                       output_type=pytesseract.Output.DICT)
+        w2, c2 = [], []
+        for t, c in zip(d2["text"], d2["conf"]):
+            if t.strip() and float(c) >= 0:
+                w2.append(t)
+                c2.append(float(c))
+        if c2 and clean_text("".join(w2)) == text:
+            conf = sum(c2) / len(c2)
+    return text, conf
 
 
 _TO_DIGIT = {"O": "0", "Q": "0", "D": "0", "I": "1", "L": "1"}
