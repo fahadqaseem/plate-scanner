@@ -63,6 +63,7 @@ int main(void) {
     }
     lcd_ok = st7789_ready();
     screen_ready();
+    if (lcd_ok) board_backlight(255);   /* backlight starts off; without this the screen looks dead */
     const bool leds_ok = ws2812_init(pio0, 0u);
     if (leds_ok) leds_fill(0u, 80u, 0u);   /* green on boot */
     absolute_time_t next_led = make_timeout_time_ms(FLASH_MS);
