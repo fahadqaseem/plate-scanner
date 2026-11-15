@@ -119,6 +119,10 @@ requests.post("http://localhost:8000/recognize",
 
 The response text is printed to the terminal. To use a different flow, read the files from `plates/` yourself, or import `FrameParser` from `receive_plates.py`.
 
+## Test images
+
+`samples/` has 5 real captures from this camera (1920x1080 JPEG, same format the script saves), so you can test your pipeline before you have the hardware in hand. They show people and a desk, **not license plates**. Everyone in them agreed to be published. Please do not reuse them outside this project.
+
 ## Things to know
 
 - **No FREE-WILi library is needed.** Your `get_file` / `take_picture` flow is not used. The camera is on the ESP32 board, not the FREE-WILi, and the FREE-WILi now runs a small custom app that only announces the button press.
