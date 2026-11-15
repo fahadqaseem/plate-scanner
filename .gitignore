@@ -10,3 +10,4 @@ plates/
 .DS_Store
 demo/.venv/
 demo/api.log
+demo/aws.env
