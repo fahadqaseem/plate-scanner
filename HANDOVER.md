@@ -2,6 +2,24 @@
 
 Short version: **press the green button on the FREE-WILi, a JPEG file appears in a folder on the laptop.** Your recognition service takes it from there.
 
+## Checklist (read this first)
+
+**You need**
+- [ ] The two boards from Fahad: the **FREE-WILi** (with the Orca module and camera attached) and the **ESP32-P4-EYE camera**.
+- [ ] Two USB-C/USB cables that carry data (charge-only cables will not work), both plugged into **your** laptop.
+- [ ] Python 3 with `pip install pyserial requests`.
+- [ ] Your recognition endpoint URL and API key, only if you want `--post`.
+
+**You do not need** ESP-IDF, the Pico SDK, the `freewili` library, any flashing, or Wi-Fi. The boards are already programmed.
+
+**Steps**
+1. Plug the camera's **Debug** USB-C port and the FREE-WILi into your laptop. Close anything else using them.
+2. `git clone https://github.com/fahadqaseem/plate-scanner && cd plate-scanner`
+3. `python host/receive_plates.py` (add `--post <url> --api-key <key>` to forward images).
+4. Press the **green** button on the FREE-WILi. A JPEG appears in `plates/`.
+
+If a step fails, jump to "If something is wrong" at the bottom, then ask Fahad.
+
 ## What you receive
 
 | | |
@@ -16,11 +34,37 @@ The files are normal JPEGs. Open them with any viewer.
 
 ## What has to be connected
 
-Both devices plug into the **same laptop**, each with its own USB cable:
-1. **FREE-WILi OG**, with the P4-EYE camera attached through the Orca module.
-2. **ESP32-P4-EYE camera**, in its **Debug** USB-C port (not the "USB 2.0" one).
+Which devices go into her laptop depends on how she wants to trigger a capture:
 
-There is no Wi-Fi and no extra wire between them. The laptop passes the button press from the FREE-WILi to the camera.
+| Setup | Plug into her laptop | Trigger |
+|---|---|---|
+| **Full pipeline (recommended)** | Camera **and** FREE-WILi | Green button on the FREE-WILi |
+| **Camera only** | Camera | Her code sends the byte `T` to the camera's serial port (tested). The Boot button is also wired as a trigger but **untested**. |
+
+The FREE-WILi is only the physical trigger. It does no image work, so the ML side does not need it. The laptop connects the two, which is why both USB cables must go to the **same** laptop in the full setup.
+
+Cables:
+- **Camera:** the ESP32-P4-EYE's **Debug** USB-C port (not the "USB 2.0" one).
+- **FREE-WILi:** its own USB cable, with the P4-EYE attached through the Orca module.
+
+There is no Wi-Fi and no extra wire between the boards. Both boards already have their firmware stored, so nothing needs flashing.
+
+## Software she needs
+
+On her laptop only:
+
+| Needed | Notes |
+|---|---|
+| Python 3 | Tested with 3.13 on macOS. Nothing version-specific is used. |
+| `pyserial` | `pip install pyserial` (finds the boards and reads the images) |
+| `requests` | `pip install requests` (only for `--post`) |
+| This repo | `git clone`, or download the ZIP. Only `host/receive_plates.py` is required. |
+
+She does **not** need ESP-IDF, the Pico SDK, the `freewili` Python library, a compiler or any flashing tool. Those are only for rebuilding the firmware (see `README.md`).
+
+Operating system: tested on macOS, where no driver is needed. Windows and Linux are untested. On Windows the ESP may need its USB serial driver.
+
+For the ML model she can use whatever she likes (PIL, OpenCV, PyTorch...). The images are plain JPEG files.
 
 ## Run it
 
@@ -32,6 +76,28 @@ python host/receive_plates.py
 ```
 
 It prints `camera: ... | FREE-WILi: ...` and then waits. Press the green button and you will see `saved plate_....jpg`.
+
+## Feeding an ML model
+
+The simplest hand-off: run the script in one terminal, and let the model code watch the `plates/` folder. Each new file is one capture.
+
+```python
+# Example only (not part of the repo): process each new image once.
+from pathlib import Path
+import time
+from PIL import Image
+
+seen = set()
+while True:
+    for f in sorted(Path("plates").glob("plate_*.jpg")):
+        if f not in seen:
+            seen.add(f)
+            img = Image.open(f)          # 1920x1080 RGB (if it errors, the file was mid-write: retry)
+            # run the model here
+    time.sleep(0.2)
+```
+
+Alternatively `--post` sends each image to an HTTP endpoint (below), or she can import `FrameParser` from `host/receive_plates.py` to get the JPEG bytes directly.
 
 ## Sending the images to your service
 
@@ -56,7 +122,7 @@ The response text is printed to the terminal. To use a different flow, read the 
 - **No FREE-WILi library is needed.** Your `get_file` / `take_picture` flow is not used. The camera is on the ESP32 board, not the FREE-WILi, and the FREE-WILi now runs a small custom app that only announces the button press.
 - **Only one program can use each USB port.** Close `idf.py monitor` or any serial terminal before running the script.
 - **Dark first picture after power-up:** the camera is still adjusting exposure. Later pictures are fine.
-- **Manual trigger:** the Boot button on the P4-EYE also captures. A program can trigger it by sending the single byte `T` to the camera's serial port.
+- **Manual trigger:** a program can trigger a capture by sending the single byte `T` to the camera's serial port (tested). The Boot button on the P4-EYE is wired as a trigger too but has not been tested.
 - **Privacy:** the camera captures whatever it faces, including people and screens. Delete test images before sharing them.
 
 ## Status
