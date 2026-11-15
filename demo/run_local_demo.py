@@ -9,7 +9,8 @@ BACKEND = Path(sys.argv[1]).resolve()
 FRONT = Path(__file__).resolve().parent.parent / "frontend"
 for k, v in {"AWS_REGION":"us-east-2","AWS_DEFAULT_REGION":"us-east-2","AWS_ACCESS_KEY_ID":"testing",
   "AWS_SECRET_ACCESS_KEY":"testing","S3_BUCKET":"lpr-demo","DYNAMODB_TABLE":"lpr-records",
-  "VEHICLES_TABLE":"lpr-vehicles","API_KEYS":"demo-camera-key"}.items():
+  "VEHICLES_TABLE":"lpr-vehicles","API_KEYS":"demo-camera-key",
+  "MIN_OCR_CONFIDENCE":"75"}.items():
     os.environ[k] = v
 import boto3, uvicorn
 from moto import mock_aws
