@@ -117,7 +117,7 @@ requests.post("http://localhost:8000/recognize",
               files={"file": ("plate_<time>.jpg", jpeg_bytes, "image/jpeg")})
 ```
 
-The response text is printed to the terminal. To use a different flow, read the files from `plates/` yourself, or import `FrameParser` from `host/receive_plates.py`.
+The response text is printed to the terminal. To use a different flow, read the files from `plates/` yourself, or import `FrameParser` from `receive_plates.py`.
 
 ## Things to know
 
