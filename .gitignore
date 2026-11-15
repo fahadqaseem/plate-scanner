@@ -8,3 +8,5 @@ plates/
 *.uf2
 *.elf
 .DS_Store
+demo/.venv/
+demo/api.log
