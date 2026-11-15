@@ -1,0 +1,32 @@
+menu "Plate Trigger"
+    config PT_SERIAL_OUT
+        bool "Send each JPEG over the USB serial port (wire)"
+        default y
+    config PT_POST_ENABLE
+        bool "Also start Wi-Fi and HTTP POST each JPEG"
+        default n
+    config PT_WIFI_SSID
+        string "Wi-Fi hotspot SSID"
+        default "myhotspot"
+    config PT_WIFI_PASS
+        string "Wi-Fi password"
+        default "changeme"
+    config PT_SERVER_URL
+        string "Scan endpoint"
+        default "http://<AWS_IP>:8000/scan"
+    config PT_TRIGGER_GPIO
+        int "Header GPIO wired to FREE-WILi GPIO 27 (3.3 V pulse)"
+        default 6
+        help
+            MUST match the P4-EYE 2x10 header pin you wired. Check the schematic.
+            Do not use GPIOs used by the BSP (2-5, 9, 11-23, 26, 45-48).
+    config PT_BUTTON_GPIO
+        int "Manual backup button GPIO (Boot button, active low)"
+        default 35
+    config PT_JPEG_QUALITY
+        int "JPEG quality"
+        default 80
+    config PT_DEBOUNCE_MS
+        int "Ignore new triggers for this long after one"
+        default 1500
+endmenu

@@ -1,0 +1,5 @@
+dependencies:
+  idf: ">=5.5.3"
+  espressif/esp_wifi_remote: "*"   # Wi-Fi API forwarded to the on-board ESP32-C6
+  espressif/esp_hosted: "*"
+  espressif/esp_lvgl_port: "2.6.*"   # BSP pulls LVGL in; 2.9.x needs a newer IDF than 5.5.4
