@@ -14,8 +14,9 @@ Short version: **press the green button on the FREE-WILi, a JPEG file appears in
 
 **Steps**
 1. Plug the camera's **Debug** USB-C port and the FREE-WILi into your laptop. Close anything else using them.
-2. `git clone https://github.com/fahadqaseem/plate-scanner && cd plate-scanner`
-3. `python host/receive_plates.py` (add `--post <url> --api-key <key>` to forward images).
+2. Download the one file you need (no clone required):
+   `curl -O https://raw.githubusercontent.com/fahadqaseem/plate-scanner/main/host/receive_plates.py`
+3. `python receive_plates.py` (add `--post <url> --api-key <key>` to forward images).
 4. Press the **green** button on the FREE-WILi. A JPEG appears in `plates/`.
 
 If a step fails, jump to "If something is wrong" at the bottom, then ask Fahad.
@@ -58,7 +59,7 @@ On her laptop only:
 | Python 3 | Tested with 3.13 on macOS. Nothing version-specific is used. |
 | `pyserial` | `pip install pyserial` (finds the boards and reads the images) |
 | `requests` | `pip install requests` (only for `--post`) |
-| This repo | `git clone`, or download the ZIP. Only `host/receive_plates.py` is required. |
+| `receive_plates.py` | The only file required. Download it as above; cloning the repo is optional. |
 
 She does **not** need ESP-IDF, the Pico SDK, the `freewili` Python library, a compiler or any flashing tool. Those are only for rebuilding the firmware (see `README.md`).
 
@@ -69,13 +70,14 @@ For the ML model she can use whatever she likes (PIL, OpenCV, PyTorch...). The i
 ## Run it
 
 ```bash
-git clone https://github.com/fahadqaseem/plate-scanner
-cd plate-scanner
+curl -O https://raw.githubusercontent.com/fahadqaseem/plate-scanner/main/host/receive_plates.py
 pip install pyserial requests
-python host/receive_plates.py
+python receive_plates.py
 ```
 
-It prints `camera: ... | FREE-WILi: ...` and then waits. Press the green button and you will see `saved plate_....jpg`.
+No `git clone` is needed. Clone the repo only if you want the README, this guide's sources, or the firmware (for reflashing). In a clone the script is at `host/receive_plates.py`.
+
+It prints `camera: ... | FREE-WILi: ...` and then waits. Press the green button and you will see `saved plate_....jpg`. Images go to a `plates/` folder in the directory you ran it from.
 
 ## Feeding an ML model
 
@@ -97,14 +99,14 @@ while True:
     time.sleep(0.2)
 ```
 
-Alternatively `--post` sends each image to an HTTP endpoint (below), or she can import `FrameParser` from `host/receive_plates.py` to get the JPEG bytes directly.
+Alternatively `--post` sends each image to an HTTP endpoint (below), or she can import `FrameParser` from `receive_plates.py` to get the JPEG bytes directly.
 
 ## Sending the images to your service
 
 Add `--post` and your key and every image is sent as it is captured:
 
 ```bash
-python host/receive_plates.py --post http://localhost:8000/recognize --api-key "<camera key>"
+python receive_plates.py --post http://localhost:8000/recognize --api-key "<camera key>"
 ```
 
 This is the same request as your example script:
