@@ -65,7 +65,11 @@ class Gate:
                 out.append(jpg)
                 continue
             img = cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
-            plate = apple_vision_ocr.read_plate(img, a.regex, a.min_height)[0] if img is not None else None
+            plate = None
+            if img is not None:
+                plate, pconf = apple_vision_ocr.read_plate(img, a.regex, a.min_height)[:2]
+                if pconf < 80:                                   # real plates read at ~100; junk text reads ~30
+                    plate = None
             if plate and sum(ch.isdigit() for ch in plate) < 2:     # plates have 2+ digits; keyboard/signs rarely do
                 plate = None
             now = time.monotonic()

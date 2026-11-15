@@ -16,14 +16,35 @@ static fwog_link_rx_t s_rx;   /* ~4 KB: must be file-scope, not on the stack */
 
 static bool lcd_ok;
 
-/* Draw `str` horizontally centred at row y, using the largest scale (<= max_scale) that fits. */
+/* The BSP text driver only supports scale <= 3 (larger sizes draw nothing), so big text is
+ * drawn here straight from the font columns, one filled rectangle per vertical run of pixels.
+ * Assumes the background is already painted. */
+static void big_char(uint16_t x, uint16_t y, char c, unsigned scale, uint16_t fg) {
+    const uint8_t *g = lcd_font_glyph(c);
+    for (unsigned col = 0; col < LCD_GLYPH_W; col++) {
+        unsigned row = 0;
+        while (row < LCD_GLYPH_H) {
+            if (!(g[col] & (1u << row))) { row++; continue; }
+            unsigned end = row;
+            while (end < LCD_GLYPH_H && (g[col] & (1u << end))) end++;
+            st7789_fill_rect((uint16_t)(x + col * scale), (uint16_t)(y + row * scale),
+                             (uint16_t)scale, (uint16_t)((end - row) * scale), fg);
+            row = end;
+        }
+    }
+}
+
+/* Horizontally centred big text at row y; scale chosen so it fits the 320 px width. */
 static void draw_centered(uint16_t y, const char *str, unsigned max_scale, uint16_t fg, uint16_t bg) {
+    (void)bg;
     unsigned n = 0;
     while (str[n]) n++;
     unsigned scale = max_scale;
-    while (scale > 1u && lcd_text_width_px(n, scale) > ST7789_W - 10u) scale--;
-    const unsigned w = lcd_text_width_px(n, scale);
-    lcd_text_draw((uint16_t)((ST7789_W - w) / 2u), y, str, scale, fg, bg);
+    while (scale > 1u && n * LCD_GLYPH_W * scale > ST7789_W - 10u) scale--;
+    const unsigned w = n * LCD_GLYPH_W * scale;
+    unsigned x = (ST7789_W - w) / 2u;
+    for (unsigned i = 0; i < n; i++, x += LCD_GLYPH_W * scale)
+        big_char((uint16_t)x, y, str[i], scale, fg);
 }
 
 static void screen_ready(void) {
@@ -32,14 +53,15 @@ static void screen_ready(void) {
     st7789_clear(bg);
     draw_centered(50, "FREE MILES", 5, st7789_rgb565(255, 255, 255), bg);
     draw_centered(120, "TEAM ZORRO", 4, st7789_rgb565(255, 180, 0), bg);
-    draw_centered(200, "press green = photo", 2, st7789_rgb565(120, 200, 255), bg);
+    lcd_text_draw((uint16_t)((ST7789_W - lcd_text_width_px(19, 2)) / 2u), 200, "press green = photo", 2,
+                  st7789_rgb565(120, 200, 255), bg);
 }
 
 static void screen_flash(void) {
     if (!lcd_ok) return;
     const uint16_t g = st7789_rgb565(0, 220, 0), k = st7789_rgb565(0, 0, 0);
     st7789_clear(g);
-    lcd_text_draw(60, 100, "PHOTO!", 5, k, g);
+    draw_centered(95, "PHOTO!", 7, k, g);
 }
 
 static void leds_fill(uint8_t r, uint8_t g, uint8_t b) {
