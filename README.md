@@ -34,15 +34,9 @@ There are no jumper wires between the boards and no Wi-Fi. The laptop connects t
 | Part | Where it lives |
 |---|---|
 | FREE-WILi app, ESP32 camera firmware, USB image transfer, auto-capture, demo launcher | this repo, `main` |
-| Recognition backend (FastAPI, plate locator, OCR, AWS storage, bridge) | Anvita, branch `add-lpr-backend` |
-| Backend fix: real confidence scores from Tesseract 5.5 | branch `fix-ocr-confidence` (`add-lpr-backend` plus one commit) |
+| Recognition backend (FastAPI, plate locator, OCR, AWS storage, bridge) | Anvita, `backend/` (from branch `add-lpr-backend`) |
+| Backend fix: real confidence scores from Tesseract 5.5 | `backend/app/ocr_plate.py` (from branch `fix-ocr-confidence`) |
 | Web front end | `frontend/` |
-
-The backend is not on `main` yet. Check out `fix-ocr-confidence` into a separate folder (a git worktree works) and pass that folder's `backend/` path to the commands below.
-
-```bash
-git worktree add ../lpr-backend fix-ocr-confidence
-```
 
 ## Run the demo
 
@@ -51,7 +45,7 @@ Plug both boards into the laptop. The camera goes in its **Debug** USB-C port.
 ### Quick start: button mode, fake AWS (free, no account)
 
 ```bash
-./demo/start_demo.sh ../lpr-backend/backend
+./demo/start_demo.sh
 ```
 
 On the first run it creates `demo/.venv` and installs dependencies. Then it opens <http://localhost:8000/demo/>. Press the green button to scan. Records stay in memory and are lost when it stops.
@@ -62,10 +56,10 @@ Run the API in one terminal and the auto-capture bridge in a second one:
 
 ```bash
 # terminal 1: the API (add --aws to use real AWS, see below)
-demo/.venv/bin/python demo/run_local_demo.py ../lpr-backend/backend
+demo/.venv/bin/python demo/run_local_demo.py backend
 
 # terminal 2: auto capture. The green button still works too.
-demo/.venv/bin/python demo/auto_bridge.py ../lpr-backend/backend --api-key demo-camera-key
+demo/.venv/bin/python demo/auto_bridge.py backend --api-key demo-camera-key
 ```
 
 The auto bridge takes a photo about every 2.5 s. It sends a photo to the API only when it finds plate-like text: tall enough (at least 7% of the image height), read with at least 80% confidence, and containing at least 2 digits. The same plate is ignored for 15 s. Button photos are always sent. You can change these with `--interval`, `--min-height` and `--repeat-seconds`.
@@ -93,6 +87,7 @@ Tips for a good read: hold the plate flat, steady and in focus, about 0.5 to 1 m
 
 | Path | What it is |
 |---|---|
+| `backend/` | Recognition API (FastAPI), bridge, AWS infrastructure, tests. See `backend/README.md` |
 | `freewili/platescan/` | FREE-WILi OG app: green button trigger, FREE MILES / TEAM ZORRO screen, LED bar, flash on photo. Built on FreeWili's [wiliOGBsp](https://github.com/freewili/wiliOGBsp) |
 | `esp32/plate_trigger/` | ESP-IDF 5.5 firmware for the ESP32-P4-EYE: camera, hardware JPEG encoder, USB output |
 | `esp32/pin_finder/` | Diagnostic that prints which ESP GPIOs go high |

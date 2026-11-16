@@ -1,11 +1,11 @@
 #!/bin/sh
 # One command to run the whole demo: backend (fake AWS, free) + FREE-WILi/camera bridge.
-#   ./demo/start_demo.sh [path/to/lpr-backend/backend]
+#   ./demo/start_demo.sh [path/to/backend]   (default: backend/ in this repo)
 # Open http://localhost:8000/demo/ , press the green button on the FREE-WILi.
 # Stop with Ctrl-C. Records live in memory and are lost on exit (no AWS account needed).
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
-BACKEND="${1:-$HERE/../../lpr-backend/backend}"
+BACKEND="${1:-$HERE/../backend}"
 [ -f "$BACKEND/app/main.py" ] || { echo "backend not found at $BACKEND (pass its path as the first argument)"; exit 1; }
 VENV="$HERE/.venv"
 if [ ! -x "$VENV/bin/python" ]; then
