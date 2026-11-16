@@ -3,7 +3,7 @@
 Green button on the FREE-WILi → ESP32-P4-EYE takes a 1920×1080 photo → plate text out → image in S3, record in DynamoDB, JSON to the frontend.
 
 ```
-FREE-WILi button ─USB─▶ bridge/freewili_bridge.py ─USB "T"─▶ ESP32-P4-EYE camera   (Fahad's plate-scanner repo)
+FREE-WILi button ─USB─▶ bridge/freewili_bridge.py ─USB "T"─▶ ESP32-P4-EYE camera   (firmware: freewili/ and esp32/ in this repo)
   (laptop at the garage)        ▲  └─ spool/ (queued until uploaded)     │
                                 └────────── JPEG frame over USB ◀────────┘
                                 │
